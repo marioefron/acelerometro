@@ -67,7 +67,7 @@
         input:checked + .slider:before { transform: translateX(20px); }
     </style>
 </head>
-<body class="bg-slate-900 text-white min-h-screen flex flex-col items-center p-4 md:p-8 font-sans">
+<body class="bg-slate-900 text-white min-h-screen flex flex-col items-center p-4 md:p-8 font-sans text-center">
 
     <div class="max-w-4xl w-full">
         <header class="text-center mb-8">
@@ -231,6 +231,10 @@
             if (document.getElementById('checkButtons').checked) optionalServices.push(services.button.id);
 
             try {
+                if (optionalServices.length === 0) {
+                    throw new Error("Por favor, selecciona al menos un sensor antes de conectar.");
+                }
+
                 device = await navigator.bluetooth.requestDevice({
                     filters: [{ namePrefix: 'BBC micro:bit' }],
                     optionalServices: optionalServices
@@ -238,18 +242,27 @@
 
                 const server = await device.gatt.connect();
 
-                // Inicializar cada servicio si está habilitado
-                if (document.getElementById('checkAccel').checked) await initAccel(server);
-                if (document.getElementById('checkMag').checked) await initMag(server);
-                if (document.getElementById('checkTemp').checked) await initTemp(server);
-                if (document.getElementById('checkButtons').checked) await initButtons(server);
+                // Inicializar servicios secuencialmente con manejo de errores individual
+                if (document.getElementById('checkAccel').checked) {
+                    try { await initAccel(server); } catch(e) { console.error("Error Accel:", e); }
+                }
+                if (document.getElementById('checkMag').checked) {
+                    try { await initMag(server); } catch(e) { console.error("Error Mag:", e); }
+                }
+                if (document.getElementById('checkTemp').checked) {
+                    try { await initTemp(server); } catch(e) { console.error("Error Temp:", e); }
+                }
+                if (document.getElementById('checkButtons').checked) {
+                    try { await initButtons(server); } catch(e) { console.error("Error Buttons:", e); }
+                }
 
                 updateUIState(true);
                 device.addEventListener('gattserverdisconnected', () => updateUIState(false));
 
             } catch (err) {
-                errDiv.textContent = "Error: " + err.message;
+                errDiv.textContent = "Error de conexión: " + err.message;
                 errDiv.classList.remove('hidden');
+                console.error(err);
             }
         }
 
@@ -306,12 +319,15 @@
             const handleBtn = (id, e) => {
                 const state = e.target.value.getUint8(0);
                 const el = document.getElementById(id);
+                // 0: Suelto, 1: Presionado, 2: Pulsación larga
                 if (state > 0) {
                     el.classList.add('bg-purple-500', 'text-white', 'border-purple-400', 'scale-110');
                     el.classList.remove('text-slate-600', 'border-slate-700');
+                    el.textContent = state === 1 ? "PRES" : "LONG";
                 } else {
                     el.classList.remove('bg-purple-500', 'text-white', 'border-purple-400', 'scale-110');
                     el.classList.add('text-slate-600', 'border-slate-700');
+                    el.textContent = id === 'btnA' ? "A" : "B";
                 }
             };
 
