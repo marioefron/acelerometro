@@ -93,21 +93,21 @@
                     <label class="flex flex-col items-center gap-2 p-3 bg-slate-900/50 rounded-2xl border border-slate-700/50 cursor-pointer">
                         <span class="text-xs font-semibold">Magnetómetro</span>
                         <div class="switch">
-                            <input type="checkbox" id="checkMag" onchange="toggleCard('cardMag', this.checked)">
+                            <input type="checkbox" id="checkMag" checked onchange="toggleCard('cardMag', this.checked)">
                             <span class="slider"></span>
                         </div>
                     </label>
                     <label class="flex flex-col items-center gap-2 p-3 bg-slate-900/50 rounded-2xl border border-slate-700/50 cursor-pointer">
                         <span class="text-xs font-semibold">Temperatura</span>
                         <div class="switch">
-                            <input type="checkbox" id="checkTemp" onchange="toggleCard('cardTemp', this.checked)">
+                            <input type="checkbox" id="checkTemp" checked onchange="toggleCard('cardTemp', this.checked)">
                             <span class="slider"></span>
                         </div>
                     </label>
                     <label class="flex flex-col items-center gap-2 p-3 bg-slate-900/50 rounded-2xl border border-slate-700/50 cursor-pointer">
                         <span class="text-xs font-semibold">Botones A/B</span>
                         <div class="switch">
-                            <input type="checkbox" id="checkButtons" onchange="toggleCard('cardButtons', this.checked)">
+                            <input type="checkbox" id="checkButtons" checked onchange="toggleCard('cardButtons', this.checked)">
                             <span class="slider"></span>
                         </div>
                     </label>
@@ -151,7 +151,7 @@
             </div>
 
             <!-- TARJETA: MAGNETÓMETRO -->
-            <div id="cardMag" class="hidden data-card p-6 rounded-3xl flex flex-col justify-between">
+            <div id="cardMag" class="data-card p-6 rounded-3xl flex flex-col justify-between">
                 <h3 class="text-blue-400 text-xs font-bold uppercase mb-4">Magnetómetro (Brújula)</h3>
                 <div class="flex-1 flex flex-col items-center justify-center">
                     <div id="compassNeedle" class="text-6xl mb-4 transition-transform duration-200" style="transform: rotate(0deg)">🧭</div>
@@ -161,7 +161,7 @@
             </div>
 
             <!-- TARJETA: TEMPERATURA -->
-            <div id="cardTemp" class="hidden data-card p-6 rounded-3xl flex flex-col justify-between">
+            <div id="cardTemp" class="data-card p-6 rounded-3xl flex flex-col justify-between">
                 <h3 class="text-orange-400 text-xs font-bold uppercase mb-4">Temperatura Interna</h3>
                 <div class="flex-1 flex flex-col items-center justify-center">
                     <span id="valTemp" class="text-7xl font-black font-mono">--°C</span>
@@ -172,7 +172,7 @@
             </div>
 
             <!-- TARJETA: BOTONES -->
-            <div id="cardButtons" class="hidden data-card p-6 rounded-3xl flex flex-col justify-between">
+            <div id="cardButtons" class="data-card p-6 rounded-3xl flex flex-col justify-between">
                 <h3 class="text-purple-400 text-xs font-bold uppercase mb-4">Estado de Botones</h3>
                 <div class="flex justify-around items-center flex-1">
                     <div class="flex flex-col items-center gap-4">
@@ -196,8 +196,7 @@
         const services = {
             accel: { 
                 id: 'e95d0753-251d-470a-a062-fa1922dfa9a8', 
-                data: 'e95dca4b-251d-470a-a062-fa1922dfa9a8',
-                period: 'e95dfb11-251d-470a-a062-fa1922dfa9a8'
+                data: 'e95dca4b-251d-470a-a062-fa1922dfa9a8'
             },
             mag: {
                 id: 'e95f92c1-251d-470a-a062-fa1922dfa9a8',
@@ -214,6 +213,9 @@
             }
         };
 
+        // Función para esperar un tiempo determinado (evita saturar el micro:bit)
+        const delay = ms => new Promise(res => setTimeout(res, ms));
+
         function toggleCard(id, show) {
             const card = document.getElementById(id);
             if (show) card.classList.remove('hidden');
@@ -223,47 +225,63 @@
         async function connect() {
             const errDiv = document.getElementById('errorMessage');
             errDiv.classList.add('hidden');
+            errDiv.textContent = "";
 
-            const optionalServices = [];
-            if (document.getElementById('checkAccel').checked) optionalServices.push(services.accel.id);
-            if (document.getElementById('checkMag').checked) optionalServices.push(services.mag.id);
-            if (document.getElementById('checkTemp').checked) optionalServices.push(services.temp.id);
-            if (document.getElementById('checkButtons').checked) optionalServices.push(services.button.id);
+            // Listar TODOS los posibles servicios de micro:bit para que el navegador los reconozca
+            const allPossibleServices = [
+                services.accel.id,
+                services.mag.id,
+                services.temp.id,
+                services.button.id
+            ];
 
             try {
-                if (optionalServices.length === 0) {
-                    throw new Error("Por favor, selecciona al menos un sensor antes de conectar.");
-                }
-
                 device = await navigator.bluetooth.requestDevice({
                     filters: [{ namePrefix: 'BBC micro:bit' }],
-                    optionalServices: optionalServices
+                    optionalServices: allPossibleServices
                 });
 
                 const server = await device.gatt.connect();
+                console.log("GATT conectado");
 
-                // Inicializar servicios secuencialmente con manejo de errores individual
+                // Inicializar servicios secuencialmente con un pequeño delay
                 if (document.getElementById('checkAccel').checked) {
-                    try { await initAccel(server); } catch(e) { console.error("Error Accel:", e); }
+                    await delay(300);
+                    try { await initAccel(server); } 
+                    catch(e) { appendError("Acelerómetro no disponible. ¿Activado en micro:bit?"); }
                 }
+
                 if (document.getElementById('checkMag').checked) {
-                    try { await initMag(server); } catch(e) { console.error("Error Mag:", e); }
+                    await delay(300);
+                    try { await initMag(server); } 
+                    catch(e) { appendError("Magnetómetro no disponible. ¿Calibraste la brújula?"); }
                 }
+
                 if (document.getElementById('checkTemp').checked) {
-                    try { await initTemp(server); } catch(e) { console.error("Error Temp:", e); }
+                    await delay(300);
+                    try { await initTemp(server); } 
+                    catch(e) { appendError("Temperatura no disponible."); }
                 }
+
                 if (document.getElementById('checkButtons').checked) {
-                    try { await initButtons(server); } catch(e) { console.error("Error Buttons:", e); }
+                    await delay(300);
+                    try { await initButtons(server); } 
+                    catch(e) { appendError("Servicio de botones no disponible."); }
                 }
 
                 updateUIState(true);
                 device.addEventListener('gattserverdisconnected', () => updateUIState(false));
 
             } catch (err) {
-                errDiv.textContent = "Error de conexión: " + err.message;
-                errDiv.classList.remove('hidden');
+                appendError("Error de conexión: " + err.message);
                 console.error(err);
             }
+        }
+
+        function appendError(msg) {
+            const errDiv = document.getElementById('errorMessage');
+            errDiv.classList.remove('hidden');
+            errDiv.innerHTML += `<div>• ${msg}</div>`;
         }
 
         // --- INICIALIZADORES DE SERVICIOS ---
@@ -307,7 +325,7 @@
             char.addEventListener('characteristicvaluechanged', (e) => {
                 const temp = e.target.value.getInt8(0);
                 document.getElementById('valTemp').textContent = temp + '°C';
-                document.getElementById('barTemp').style.width = (temp * 2) + '%';
+                document.getElementById('barTemp').style.width = Math.min(100, Math.max(0, temp * 2)) + '%';
             });
         }
 
@@ -319,7 +337,6 @@
             const handleBtn = (id, e) => {
                 const state = e.target.value.getUint8(0);
                 const el = document.getElementById(id);
-                // 0: Suelto, 1: Presionado, 2: Pulsación larga
                 if (state > 0) {
                     el.classList.add('bg-purple-500', 'text-white', 'border-purple-400', 'scale-110');
                     el.classList.remove('text-slate-600', 'border-slate-700');
