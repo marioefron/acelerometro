@@ -3,13 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>micro:bit Accelerometer Data</title>
+    <title>micro:bit Multi-Sensor Monitor</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         .data-card {
             background: rgba(30, 41, 59, 0.7);
             backdrop-filter: blur(10px);
             border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
         }
         .axis-label {
             font-family: monospace;
@@ -17,130 +18,232 @@
         }
         /* Estilo para el nivel de burbuja */
         .bubble-container {
-            width: 150px;
-            height: 150px;
+            width: 120px;
+            height: 120px;
             border-radius: 50%;
-            border: 4px solid #475569;
+            border: 3px solid #475569;
             position: relative;
             background: #1e293b;
             margin: 0 auto;
         }
         #bubble {
-            width: 20px;
-            height: 20px;
+            width: 16px;
+            height: 16px;
             background: #22c55e;
             border-radius: 50%;
             position: absolute;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            box-shadow: 0 0 15px #22c55e;
+            box-shadow: 0 0 10px #22c55e;
             transition: all 0.1s ease-out;
         }
+        /* Estilos para Switches */
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 40px;
+            height: 20px;
+        }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #334155;
+            transition: .4s;
+            border-radius: 20px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 14px; width: 14px;
+            left: 3px; bottom: 3px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        input:checked + .slider { background-color: #3b82f6; }
+        input:checked + .slider:before { transform: translateX(20px); }
     </style>
 </head>
-<body class="bg-slate-900 text-white min-h-screen flex flex-col items-center p-6 font-sans">
+<body class="bg-slate-900 text-white min-h-screen flex flex-col items-center p-4 md:p-8 font-sans">
 
-    <div class="max-w-2xl w-full">
+    <div class="max-w-4xl w-full">
         <header class="text-center mb-8">
-            <h1 class="text-4xl font-black bg-gradient-to-r from-green-400 to-blue-500 bg-clip-text text-transparent mb-2">
-                Monitor Acelerómetro
+            <h1 class="text-4xl font-black bg-gradient-to-r from-blue-400 via-purple-500 to-pink-500 bg-clip-text text-transparent mb-2">
+                Multi-Sensor micro:bit
             </h1>
-            <p class="text-slate-400">Lectura en tiempo real de los ejes X, Y, Z</p>
+            <p class="text-slate-400">Panel de control y telemetría avanzada</p>
         </header>
 
-        <!-- Estado y Conexión -->
-        <div class="flex flex-col items-center gap-4 mb-8">
-            <div id="statusBadge" class="px-4 py-1 rounded-full border border-red-500/50 bg-red-500/10 text-red-400 text-sm font-bold flex items-center gap-2">
-                <span id="statusDot" class="w-2 h-2 rounded-full bg-red-500"></span>
-                <span id="statusText">DESCONECTADO</span>
+        <!-- Configuración y Conexión -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+            <!-- Panel de Selección de Sensores -->
+            <div class="lg:col-span-2 bg-slate-800/50 p-6 rounded-3xl border border-slate-700">
+                <h2 class="text-sm font-bold text-slate-500 uppercase tracking-widest mb-4">Activar Sensores</h2>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <label class="flex flex-col items-center gap-2 p-3 bg-slate-900/50 rounded-2xl border border-slate-700/50 cursor-pointer">
+                        <span class="text-xs font-semibold">Acelerómetro</span>
+                        <div class="switch">
+                            <input type="checkbox" id="checkAccel" checked onchange="toggleCard('cardAccel', this.checked)">
+                            <span class="slider"></span>
+                        </div>
+                    </label>
+                    <label class="flex flex-col items-center gap-2 p-3 bg-slate-900/50 rounded-2xl border border-slate-700/50 cursor-pointer">
+                        <span class="text-xs font-semibold">Magnetómetro</span>
+                        <div class="switch">
+                            <input type="checkbox" id="checkMag" onchange="toggleCard('cardMag', this.checked)">
+                            <span class="slider"></span>
+                        </div>
+                    </label>
+                    <label class="flex flex-col items-center gap-2 p-3 bg-slate-900/50 rounded-2xl border border-slate-700/50 cursor-pointer">
+                        <span class="text-xs font-semibold">Temperatura</span>
+                        <div class="switch">
+                            <input type="checkbox" id="checkTemp" onchange="toggleCard('cardTemp', this.checked)">
+                            <span class="slider"></span>
+                        </div>
+                    </label>
+                    <label class="flex flex-col items-center gap-2 p-3 bg-slate-900/50 rounded-2xl border border-slate-700/50 cursor-pointer">
+                        <span class="text-xs font-semibold">Botones A/B</span>
+                        <div class="switch">
+                            <input type="checkbox" id="checkButtons" onchange="toggleCard('cardButtons', this.checked)">
+                            <span class="slider"></span>
+                        </div>
+                    </label>
+                </div>
             </div>
+
+            <!-- Botón Conectar -->
+            <div class="flex flex-col justify-center items-center bg-slate-800/50 p-6 rounded-3xl border border-slate-700">
+                <div id="statusBadge" class="mb-4 px-4 py-1 rounded-full border border-red-500/50 bg-red-500/10 text-red-400 text-[10px] font-bold flex items-center gap-2 uppercase">
+                    <span id="statusDot" class="w-2 h-2 rounded-full bg-red-500"></span>
+                    <span id="statusText">Desconectado</span>
+                </div>
+                <button id="connectBtn" onclick="connect()" class="w-full py-3 bg-blue-600 hover:bg-blue-500 rounded-xl font-bold shadow-lg transition-all active:scale-95 flex items-center justify-center gap-2">
+                    Conectar
+                </button>
+                <button id="disconnectBtn" onclick="disconnect()" class="hidden w-full py-3 bg-slate-700 hover:bg-red-600 rounded-xl font-bold transition-all">
+                    Finalizar
+                </button>
+            </div>
+        </div>
+
+        <!-- Sección de Datos Dinámica -->
+        <div id="dashboard" class="hidden grid grid-cols-1 md:grid-cols-2 gap-6">
             
-            <button id="connectBtn" onclick="connect()" class="px-8 py-3 bg-blue-600 hover:bg-blue-500 rounded-2xl font-bold shadow-xl transition-all active:scale-95 flex items-center gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 7 10 10-5 5V2l5 5L7 17"/></svg>
-                Vincular micro:bit
-            </button>
-        </div>
-
-        <!-- Visualización de Datos -->
-        <div id="dataSection" class="hidden grid grid-cols-1 md:grid-cols-2 gap-6">
-            <!-- Valores Numéricos -->
-            <div class="data-card p-6 rounded-3xl space-y-6">
-                <h2 class="text-slate-400 text-xs font-bold uppercase tracking-widest">Valores de los Ejes (milli-g)</h2>
-                
-                <div class="flex justify-between items-center">
-                    <span class="axis-label text-red-400 text-xl">Eje X:</span>
-                    <span id="valX" class="text-2xl font-mono">0</span>
+            <!-- TARJETA: ACELERÓMETRO -->
+            <div id="cardAccel" class="data-card p-6 rounded-3xl flex flex-col justify-between min-h-[280px]">
+                <div>
+                    <h3 class="text-red-400 text-xs font-bold uppercase mb-4 tracking-tighter">Acelerómetro (X, Y, Z)</h3>
+                    <div class="space-y-4">
+                        <div class="flex justify-between items-center"><span class="axis-label">X:</span><span id="valX" class="font-mono">0</span></div>
+                        <div class="w-full bg-slate-800 h-1.5 rounded-full"><div id="barX" class="bg-red-500 h-full rounded-full w-1/2"></div></div>
+                        <div class="flex justify-between items-center"><span class="axis-label">Y:</span><span id="valY" class="font-mono">0</span></div>
+                        <div class="w-full bg-slate-800 h-1.5 rounded-full"><div id="barY" class="bg-green-500 h-full rounded-full w-1/2"></div></div>
+                        <div class="flex justify-between items-center"><span class="axis-label">Z:</span><span id="valZ" class="font-mono">0</span></div>
+                        <div class="w-full bg-slate-800 h-1.5 rounded-full"><div id="barZ" class="bg-blue-500 h-full rounded-full w-1/2"></div></div>
+                    </div>
                 </div>
-                <div class="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
-                    <div id="barX" class="bg-red-500 h-full transition-all" style="width: 50%"></div>
-                </div>
-
-                <div class="flex justify-between items-center">
-                    <span class="axis-label text-green-400 text-xl">Eje Y:</span>
-                    <span id="valY" class="text-2xl font-mono">0</span>
-                </div>
-                <div class="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
-                    <div id="barY" class="bg-green-500 h-full transition-all" style="width: 50%"></div>
-                </div>
-
-                <div class="flex justify-between items-center">
-                    <span class="axis-label text-blue-400 text-xl">Eje Z:</span>
-                    <span id="valZ" class="text-2xl font-mono">0</span>
-                </div>
-                <div class="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
-                    <div id="barZ" class="bg-blue-500 h-full transition-all" style="width: 50%"></div>
-                </div>
-            </div>
-
-            <!-- Nivel de Burbuja Visual -->
-            <div class="data-card p-6 rounded-3xl flex flex-col items-center justify-center space-y-4">
-                <h2 class="text-slate-400 text-xs font-bold uppercase tracking-widest">Inclinación Visual</h2>
-                <div class="bubble-container">
+                <div class="bubble-container mt-4">
                     <div id="bubble"></div>
-                    <div class="absolute top-1/2 w-full border-t border-slate-700/50"></div>
-                    <div class="absolute left-1/2 h-full border-l border-slate-700/50"></div>
                 </div>
-                <p class="text-slate-500 text-xs text-center mt-2">Mueve la micro:bit para ver la burbuja desplazarse</p>
             </div>
+
+            <!-- TARJETA: MAGNETÓMETRO -->
+            <div id="cardMag" class="hidden data-card p-6 rounded-3xl flex flex-col justify-between">
+                <h3 class="text-blue-400 text-xs font-bold uppercase mb-4">Magnetómetro (Brújula)</h3>
+                <div class="flex-1 flex flex-col items-center justify-center">
+                    <div id="compassNeedle" class="text-6xl mb-4 transition-transform duration-200" style="transform: rotate(0deg)">🧭</div>
+                    <span id="valMag" class="text-4xl font-black font-mono">0°</span>
+                </div>
+                <p class="text-[10px] text-slate-500 text-center uppercase mt-4">Rumbo Magnético</p>
+            </div>
+
+            <!-- TARJETA: TEMPERATURA -->
+            <div id="cardTemp" class="hidden data-card p-6 rounded-3xl flex flex-col justify-between">
+                <h3 class="text-orange-400 text-xs font-bold uppercase mb-4">Temperatura Interna</h3>
+                <div class="flex-1 flex flex-col items-center justify-center">
+                    <span id="valTemp" class="text-7xl font-black font-mono">--°C</span>
+                    <div class="w-full bg-slate-800 h-4 rounded-full mt-6 overflow-hidden border border-slate-700">
+                        <div id="barTemp" class="bg-orange-500 h-full transition-all" style="width: 0%"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TARJETA: BOTONES -->
+            <div id="cardButtons" class="hidden data-card p-6 rounded-3xl flex flex-col justify-between">
+                <h3 class="text-purple-400 text-xs font-bold uppercase mb-4">Estado de Botones</h3>
+                <div class="flex justify-around items-center flex-1">
+                    <div class="flex flex-col items-center gap-4">
+                        <div id="btnA" class="w-20 h-20 rounded-full border-4 border-slate-700 flex items-center justify-center text-2xl font-bold text-slate-600 transition-all">A</div>
+                        <span class="text-[10px] text-slate-500 uppercase">Izquierdo</span>
+                    </div>
+                    <div class="flex flex-col items-center gap-4">
+                        <div id="btnB" class="w-20 h-20 rounded-full border-4 border-slate-700 flex items-center justify-center text-2xl font-bold text-slate-600 transition-all">B</div>
+                        <span class="text-[10px] text-slate-500 uppercase">Derecho</span>
+                    </div>
+                </div>
+            </div>
+
         </div>
 
-        <div id="errorMessage" class="hidden mt-6 p-4 bg-red-900/40 border border-red-500/50 rounded-2xl text-red-200 text-sm italic"></div>
+        <div id="errorMessage" class="hidden mt-6 p-4 bg-red-900/40 border border-red-500/50 rounded-2xl text-red-200 text-xs italic"></div>
     </div>
 
     <script>
         let device;
-        // UUIDs estándar del servicio de acelerómetro de micro:bit
-        const ACCEL_SERVICE_UUID = 'e95d0753-251d-470a-a062-fa1922dfa9a8';
-        const ACCEL_DATA_CHAR_UUID = 'e95dca4b-251d-470a-a062-fa1922dfa9a8';
-        const ACCEL_PERIOD_CHAR_UUID = 'e95dfb11-251d-470a-a062-fa1922dfa9a8';
+        const services = {
+            accel: { 
+                id: 'e95d0753-251d-470a-a062-fa1922dfa9a8', 
+                data: 'e95dca4b-251d-470a-a062-fa1922dfa9a8',
+                period: 'e95dfb11-251d-470a-a062-fa1922dfa9a8'
+            },
+            mag: {
+                id: 'e95f92c1-251d-470a-a062-fa1922dfa9a8',
+                bearing: 'e95f9715-251d-470a-a062-fa1922dfa9a8'
+            },
+            temp: {
+                id: 'e95d6100-251d-470a-a062-fa1922dfa9a8',
+                data: 'e95d9250-251d-470a-a062-fa1922dfa9a8'
+            },
+            button: {
+                id: 'e95d9882-251d-470a-a062-fa1922dfa9a8',
+                a: 'e95dda90-251d-470a-a062-fa1922dfa9a8',
+                b: 'e95dda91-251d-470a-a062-fa1922dfa9a8'
+            }
+        };
+
+        function toggleCard(id, show) {
+            const card = document.getElementById(id);
+            if (show) card.classList.remove('hidden');
+            else card.classList.add('hidden');
+        }
 
         async function connect() {
             const errDiv = document.getElementById('errorMessage');
             errDiv.classList.add('hidden');
 
+            const optionalServices = [];
+            if (document.getElementById('checkAccel').checked) optionalServices.push(services.accel.id);
+            if (document.getElementById('checkMag').checked) optionalServices.push(services.mag.id);
+            if (document.getElementById('checkTemp').checked) optionalServices.push(services.temp.id);
+            if (document.getElementById('checkButtons').checked) optionalServices.push(services.button.id);
+
             try {
                 device = await navigator.bluetooth.requestDevice({
                     filters: [{ namePrefix: 'BBC micro:bit' }],
-                    optionalServices: [ACCEL_SERVICE_UUID]
+                    optionalServices: optionalServices
                 });
 
                 const server = await device.gatt.connect();
-                const service = await server.getPrimaryService(ACCEL_SERVICE_UUID);
 
-                // Configurar frecuencia de actualización (ej: 80ms para suavidad)
-                try {
-                    const periodChar = await service.getCharacteristic(ACCEL_PERIOD_CHAR_UUID);
-                    await periodChar.writeValue(new Uint16Array([80]));
-                } catch (e) { console.log("Periodo no ajustable, usando default"); }
+                // Inicializar cada servicio si está habilitado
+                if (document.getElementById('checkAccel').checked) await initAccel(server);
+                if (document.getElementById('checkMag').checked) await initMag(server);
+                if (document.getElementById('checkTemp').checked) await initTemp(server);
+                if (document.getElementById('checkButtons').checked) await initButtons(server);
 
-                const dataChar = await service.getCharacteristic(ACCEL_DATA_CHAR_UUID);
-                
-                // Empezar a recibir notificaciones
-                await dataChar.startNotifications();
-                dataChar.addEventListener('characteristicvaluechanged', handleAccelChange);
-
-                // UI Update
                 updateUIState(true);
                 device.addEventListener('gattserverdisconnected', () => updateUIState(false));
 
@@ -150,65 +253,101 @@
             }
         }
 
-        function handleAccelChange(event) {
-            const view = event.target.value;
-            
-            // La micro:bit envía 3 valores Int16 (X, Y, Z) en milli-g
-            const x = view.getInt16(0, true);
-            const y = view.getInt16(2, true);
-            const z = view.getInt16(4, true);
+        // --- INICIALIZADORES DE SERVICIOS ---
 
-            // Actualizar textos
-            document.getElementById('valX').textContent = x;
-            document.getElementById('valY').textContent = y;
-            document.getElementById('valZ').textContent = z;
-
-            // Actualizar barras (rango aprox de -2000 a 2000 milli-g)
-            updateBar('barX', x);
-            updateBar('barY', y);
-            updateBar('barZ', z);
-
-            // Actualizar burbuja (Inclinación)
-            const bubble = document.getElementById('bubble');
-            // Mapeamos el valor (aprox -1000 a 1000) a porcentaje (0 a 100)
-            const posX = Math.max(0, Math.min(100, 50 + (x / 20)));
-            const posY = Math.max(0, Math.min(100, 50 + (y / 20)));
-            bubble.style.left = posX + '%';
-            bubble.style.top = posY + '%';
+        async function initAccel(server) {
+            const service = await server.getPrimaryService(services.accel.id);
+            const dataChar = await service.getCharacteristic(services.accel.data);
+            await dataChar.startNotifications();
+            dataChar.addEventListener('characteristicvaluechanged', (e) => {
+                const view = e.target.value;
+                const x = view.getInt16(0, true);
+                const y = view.getInt16(2, true);
+                const z = view.getInt16(4, true);
+                document.getElementById('valX').textContent = x;
+                document.getElementById('valY').textContent = y;
+                document.getElementById('valZ').textContent = z;
+                document.getElementById('barX').style.width = Math.min(100, Math.max(0, ((x+1024)/2048)*100)) + '%';
+                document.getElementById('barY').style.width = Math.min(100, Math.max(0, ((y+1024)/2048)*100)) + '%';
+                document.getElementById('barZ').style.width = Math.min(100, Math.max(0, ((z+1024)/2048)*100)) + '%';
+                const bubble = document.getElementById('bubble');
+                bubble.style.left = Math.max(0, Math.min(100, 50 + (x/20))) + '%';
+                bubble.style.top = Math.max(0, Math.min(100, 50 + (y/20))) + '%';
+            });
         }
 
-        function updateBar(id, val) {
-            // Mapear de -2000/2000 a 0/100%
-            let percent = ((val + 2000) / 4000) * 100;
-            document.getElementById(id).style.width = Math.max(0, Math.min(100, percent)) + '%';
+        async function initMag(server) {
+            const service = await server.getPrimaryService(services.mag.id);
+            const char = await service.getCharacteristic(services.mag.bearing);
+            await char.startNotifications();
+            char.addEventListener('characteristicvaluechanged', (e) => {
+                const val = e.target.value.getUint16(0, true);
+                document.getElementById('valMag').textContent = val + '°';
+                document.getElementById('compassNeedle').style.transform = `rotate(-${val}deg)`;
+            });
+        }
+
+        async function initTemp(server) {
+            const service = await server.getPrimaryService(services.temp.id);
+            const char = await service.getCharacteristic(services.temp.data);
+            await char.startNotifications();
+            char.addEventListener('characteristicvaluechanged', (e) => {
+                const temp = e.target.value.getInt8(0);
+                document.getElementById('valTemp').textContent = temp + '°C';
+                document.getElementById('barTemp').style.width = (temp * 2) + '%';
+            });
+        }
+
+        async function initButtons(server) {
+            const service = await server.getPrimaryService(services.button.id);
+            const charA = await service.getCharacteristic(services.button.a);
+            const charB = await service.getCharacteristic(services.button.b);
+            
+            const handleBtn = (id, e) => {
+                const state = e.target.value.getUint8(0);
+                const el = document.getElementById(id);
+                if (state > 0) {
+                    el.classList.add('bg-purple-500', 'text-white', 'border-purple-400', 'scale-110');
+                    el.classList.remove('text-slate-600', 'border-slate-700');
+                } else {
+                    el.classList.remove('bg-purple-500', 'text-white', 'border-purple-400', 'scale-110');
+                    el.classList.add('text-slate-600', 'border-slate-700');
+                }
+            };
+
+            await charA.startNotifications();
+            charA.addEventListener('characteristicvaluechanged', (e) => handleBtn('btnA', e));
+            await charB.startNotifications();
+            charB.addEventListener('characteristicvaluechanged', (e) => handleBtn('btnB', e));
         }
 
         function updateUIState(connected) {
             const badge = document.getElementById('statusBadge');
             const dot = document.getElementById('statusDot');
             const text = document.getElementById('statusText');
-            const dataSec = document.getElementById('dataSection');
+            const dashboard = document.getElementById('dashboard');
             const connBtn = document.getElementById('connectBtn');
+            const disconnBtn = document.getElementById('disconnectBtn');
 
             if (connected) {
-                badge.className = "px-4 py-1 rounded-full border border-green-500/50 bg-green-500/10 text-green-400 text-sm font-bold flex items-center gap-2";
+                badge.className = "mb-4 px-4 py-1 rounded-full border border-green-500/50 bg-green-500/10 text-green-400 text-[10px] font-bold flex items-center gap-2 uppercase";
                 dot.className = "w-2 h-2 rounded-full bg-green-500 animate-pulse";
-                text.textContent = "CONECTADO";
-                dataSec.classList.remove('hidden');
+                text.textContent = "Conectado";
+                dashboard.classList.remove('hidden');
                 connBtn.classList.add('hidden');
+                disconnBtn.classList.remove('hidden');
             } else {
-                badge.className = "px-4 py-1 rounded-full border border-red-500/50 bg-red-500/10 text-red-400 text-sm font-bold flex items-center gap-2";
+                badge.className = "mb-4 px-4 py-1 rounded-full border border-red-500/50 bg-red-500/10 text-red-400 text-[10px] font-bold flex items-center gap-2 uppercase";
                 dot.className = "w-2 h-2 rounded-full bg-red-500";
-                text.textContent = "DESCONECTADO";
-                dataSec.classList.add('hidden');
+                text.textContent = "Desconectado";
+                dashboard.classList.add('hidden');
                 connBtn.classList.remove('hidden');
+                disconnBtn.classList.add('hidden');
             }
         }
 
         async function disconnect() {
-            if (device && device.gatt.connected) {
-                device.gatt.disconnect();
-            }
+            if (device && device.gatt.connected) device.gatt.disconnect();
         }
     </script>
 </body>
